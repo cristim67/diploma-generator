@@ -9,12 +9,18 @@
     "license": "ISC",
     "dependencies": {
         "@genezio/types": "^1.0.14",
-        "node-fetch": "^3.3.2"
+        "docx": "^8.5.0",
+        "docxtemplater": "^3.47.4",
+        "fs-extra": "^11.2.0",
+        "node-fetch": "^3.3.2",
+        "pizzip": "^3.1.7",
+        "xlsx": "^0.18.5"
     },
     "prettier": {
         "tabWidth": 2
     },
     "devDependencies": {
+        "@types/fs-extra": "^11.0.4",
         "@types/node": "^20.11.15",
         "@typescript-eslint/eslint-plugin": "^6.14.0",
         "@typescript-eslint/parser": "^6.14.0",

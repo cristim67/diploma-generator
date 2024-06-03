@@ -1,40 +1,80 @@
 import { GenezioDeploy, GenezioMethod } from "@genezio/types";
-import fetch from "node-fetch";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
+import fs from "fs";
+import XLSX from "xlsx";
 
-type SuccessResponse = {
-  status: "success";
-  country: string;
-  lat: number;
-  lon: number;
-  city: string;
-};
-
-type ErrorResponse = {
-  status: "fail";
-};
+export type DiplomaData = {
+  id: string;
+  licenseName: string;
+  studentName: string;
+  yearStudent: string;
+  specialization: string;
+  coordonatorName: string;
+  departamentCoordonator: string;
+  commisionPresident: string;
+}
 
 @GenezioDeploy()
-export class BackendService {
+export class DiplomaGenerator {
   constructor() {}
 
   @GenezioMethod()
-  async hello(name: string): Promise<string> {
-    const ipLocation: SuccessResponse | ErrorResponse = await fetch(
-      "http://ip-api.com/json/"
-    )
-      .then((res) => res.json() as Promise<SuccessResponse>)
-      .catch(() => ({ status: "fail" }));
-
-    if (ipLocation.status === "fail") {
-      return `Hello ${name}! Failed to get the server location :(`;
+  async generateDiplomaViaXLSX() {
+    const workbook = XLSX.readFile('data/diplomas.xlsx');
+    const sheet_name_list = workbook.SheetNames;
+    const xlData: DiplomaData[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
+    for (const data of xlData) {
+      if(data.licenseName===undefined)
+        continue;
+      await this.generateDiploma({
+        id: data.id,
+        licenseName: data.licenseName,
+        studentName: data.studentName,
+        yearStudent: data.yearStudent,
+        specialization: data.specialization,
+        coordonatorName: data.coordonatorName,
+        departamentCoordonator: data.departamentCoordonator,
+        commisionPresident: data.commisionPresident
+      });
     }
+  }
 
-    const formattedTime = new Date().toLocaleString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
+  @GenezioMethod()
+  async generateDiploma(
+    input: DiplomaData
+  ) {
+    const content = fs.readFileSync(
+      "templates/template.docx",
+      "binary"
+    );
+
+    const zip = new PizZip(content);
+
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
     });
 
-    return `Hello ${name}! This response was served from ${ipLocation.city}, ${ipLocation.country} (${ipLocation.lat}, ${ipLocation.lon}) at ${formattedTime}`;
+    doc.render({
+      licenseName: input.licenseName,
+      studentName: input.studentName,
+      yearStudent: input.yearStudent,
+      specialization: input.specialization,
+      coordonatorName: input.coordonatorName,
+      departamentCoordonator: input.departamentCoordonator,
+      commisionPresident: input.commisionPresident
+    });
+
+    const buf = doc.getZip().generate({
+      type: "nodebuffer",
+      compression: "DEFLATE",
+    });
+
+    if (!fs.existsSync('./diplomas')) {
+      fs.mkdirSync('./diplomas');
+    }
+
+    fs.writeFileSync(`./diplomas/diploma_${input.id}_${input.studentName}.docx`, buf);
   }
 }
