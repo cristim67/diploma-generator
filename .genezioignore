@@ -1,4 +1,5 @@
+client
 .git
-diplomas
-templates
-data
+server/data
+server/templates
+server/diplomas
