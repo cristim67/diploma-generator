@@ -97,9 +97,16 @@ const FileUpload: React.FC = () => {
   };
 
   return (
+    <>
     <div className="max-w-2xl mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
       <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">Încărcare Fișiere</h1>
       <div className="mb-6">
+        {message &&
+            <p className={`mt-4 p-2 rounded ${message.includes('Eroare') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{message}</p>}
+        {downloadLink && (
+          <a href={downloadLink} download="diplomas.zip" className="mt-4 block text-center text-blue-500 underline">Descărcați
+            Diplome</a>
+        )}
         <h2 className="text-xl font-semibold mb-4">Încărcare fișier DOCX</h2>
         <form onSubmit={handleSubmitDocx} className="space-y-4">
           <input
@@ -107,7 +114,9 @@ const FileUpload: React.FC = () => {
             onChange={handleFileDocxChange}
             className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           />
-          <button type="submit" className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Încărcați DOCX</button>
+          <button type="submit"
+                  className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Încărcați DOCX
+          </button>
         </form>
       </div>
       <div className="mb-6">
@@ -118,15 +127,16 @@ const FileUpload: React.FC = () => {
             onChange={handleFileExcelChange}
             className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
           />
-          <button type="submit" className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">Încărcați Excel</button>
+          <button type="submit"
+                  className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">Încărcați Excel
+          </button>
         </form>
       </div>
-      <button onClick={handleGenerateDiplomas} className="w-full px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600">Generează Diplome</button>
-      {message && <p className={`mt-4 p-2 rounded ${message.includes('Eroare') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{message}</p>}
-      {downloadLink && (
-        <a href={downloadLink} download="diplomas.zip" className="mt-4 block text-center text-blue-500 underline">Descărcați Diplome</a>
-      )}
+      <button onClick={handleGenerateDiplomas}
+              className="w-full px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600">Generează Diplome
+      </button>
     </div>
+    </>
   );
 };
 
