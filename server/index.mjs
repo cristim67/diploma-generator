@@ -8,7 +8,7 @@ import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import serverless from 'serverless-http';
 import bodyParser from "body-parser";
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 import archiver from 'archiver';
 
 const app = express();
@@ -20,9 +20,10 @@ app.use(bodyParser.urlencoded({ extended: false }));
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-const generateDiploma = async (input, fileNameTemplateDocx) => {
+const generateDiploma = async (input, fileNameTemplateDocx, folderName) => {
     try {
         const templatePath = `/tmp/templates/${fileNameTemplateDocx}`;
+        console.log(`Checking template at ${templatePath}`);
         if (!fs.existsSync(templatePath)) {
             throw new Error(`Template file not found at ${templatePath}`);
         }
@@ -38,12 +39,15 @@ const generateDiploma = async (input, fileNameTemplateDocx) => {
             type: "nodebuffer", compression: "DEFLATE",
         });
 
-        const diplomaDir = '/tmp/diplomas';
+        const diplomaDir = `/tmp/${folderName}`
+        console.log(`Creating directory ${diplomaDir}`);
         if (!fs.existsSync(diplomaDir)) {
             fs.mkdirSync(diplomaDir, { recursive: true });
         }
 
-        const fileName = `${diplomaDir}/${input["id"]}_${input["studentName"]}.docx`;
+        const uuid = uuidv4();
+        const fileName = `${diplomaDir}/${uuid}.docx`;
+        console.log(`Writing diploma to ${fileName}`);
         fs.writeFileSync(fileName, buf);
     } catch (error) {
         console.error("Error generating diploma: ", error);
@@ -54,6 +58,7 @@ const generateDiploma = async (input, fileNameTemplateDocx) => {
 const generateDiplomaViaXLSX = async (fileNameTemplateDocx, fileNameDataExcel) => {
     try {
         const dataPath = `/tmp/data/${fileNameDataExcel}`;
+        console.log(`Checking data file at ${dataPath}`);
         if (!fs.existsSync(dataPath)) {
             throw new Error(`Data file not found at ${dataPath}`);
         }
@@ -61,12 +66,13 @@ const generateDiplomaViaXLSX = async (fileNameTemplateDocx, fileNameDataExcel) =
         const sheet_name_list = workbook.SheetNames;
         const xlData = XLSX.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
 
+        const uuid = uuidv4();
         for (const data of xlData) {
-            await generateDiploma(data, fileNameTemplateDocx);
+            await generateDiploma(data, fileNameTemplateDocx, uuid);
         }
 
         console.log("Diplomas generated successfully!");
-        return 0;
+        return { status: 200, pathName: `${uuid}` };
     } catch (error) {
         console.error("Error generating diplomas: ", error);
         throw error;
@@ -145,22 +151,19 @@ app.get('/generate-diplomas', async (req, res) => {
             return;
         }
 
-        await generateDiplomaViaXLSX(fileNameTemplateDocx, fileNameDataExcel);
-        res.send({ status: 200, message: "Diplomele au fost generate cu succes!" });
+        const response = await generateDiplomaViaXLSX(fileNameTemplateDocx, fileNameDataExcel);
+        res.send({ status: 200, message: "Diplomele au fost generate cu succes!", pathName: response.pathName });
     } catch (error) {
         console.log("Error generating diplomas: ", error)
         res.status(500).send({ error: 'Eroare la generarea diplomelor.' });
     }
 });
 
-app.get('/download-diplomas', (req, res) => {
-    const diplomaDir = '/tmp/diplomas';
-    if (!fs.existsSync(diplomaDir)) {
-        res.status(404).send({ error: 'Nu s-au generat diplome.' });
-        return;
-    }
+app.get('/download', async (req, res) => {
+    const diplomaDir = req.query.pathName;
+    console.log(`Creating zip for ${diplomaDir}`);
 
-    const zipFilePath = `/tmp/diplomas.zip`;
+    const zipFilePath = `/tmp/${diplomaDir}.zip`;
     const output = fs.createWriteStream(zipFilePath);
     const archive = archiver('zip', {
         zlib: { level: 9 }
@@ -168,8 +171,8 @@ app.get('/download-diplomas', (req, res) => {
 
     output.on('close', function () {
         console.log(archive.pointer() + ' total bytes');
-        console.log('archiver has been finalized and the output file descriptor has closed.');
-        res.download(zipFilePath, 'diplomas.zip', (err) => {
+        console.log('Archiver has been finalized and the output file descriptor has closed.');
+        res.download(zipFilePath, `/tmp/${diplomaDir}.zip`, function (err) {
             if (err) {
                 res.status(500).send({ error: 'Eroare la descărcarea fișierului ZIP.' });
             }
@@ -177,12 +180,14 @@ app.get('/download-diplomas', (req, res) => {
     });
 
     archive.on('error', function (err) {
-        throw err;
+        console.error("Error creating archive: ", err);
+        res.status(500).send({ error: 'Eroare la crearea arhivei ZIP.' });
     });
 
     archive.pipe(output);
 
-    archive.directory(diplomaDir, false);
+    console.log(`Adding files from ${diplomaDir} to archive`);
+    archive.directory(`/tmp/${diplomaDir}`, false);
 
     archive.finalize();
 });
