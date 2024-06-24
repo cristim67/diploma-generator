@@ -49,7 +49,7 @@ const FileUpload: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.post(
-        `http://localhost:3000/upload-${fileType}`,
+        `https://e2877c54-da8e-49d1-9eae-0a26fa70f398.dev-fkt.cloud.genez.io/upload-${fileType}`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -79,14 +79,14 @@ const FileUpload: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `http://localhost:3000/generate-diplomas?template=${templateFileName}&data=${dataFileName}`
+        `https://e2877c54-da8e-49d1-9eae-0a26fa70f398.dev-fkt.cloud.genez.io/generate-diplomas?template=${templateFileName}&data=${dataFileName}`
       );
 
       if (response.data.status === 200) {
         const pathName = response.data.pathName;
         console.log(response.data);
         const downloadResponse = await axios.get(
-          `http://localhost:3000/download?pathName=${pathName}`,
+          `https://e2877c54-da8e-49d1-9eae-0a26fa70f398.dev-fkt.cloud.genez.io/download?pathName=${pathName}`,
           { responseType: 'blob' }
         );
 
@@ -94,7 +94,7 @@ const FileUpload: React.FC = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', 'diplomas.zip');
+        link.setAttribute('download', `${pathName}.zip`);
         document.body.appendChild(link);
         link.click();
         link.parentNode?.removeChild(link);

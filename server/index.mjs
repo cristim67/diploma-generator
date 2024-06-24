@@ -1,5 +1,4 @@
 import express from 'express';
-import multer from 'multer';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
@@ -7,18 +6,16 @@ import XLSX from 'xlsx';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import serverless from 'serverless-http';
-import bodyParser from "body-parser";
-import {v4 as uuidv4} from 'uuid';
+import bodyParser from 'body-parser';
+import { v4 as uuidv4 } from 'uuid';
 import archiver from 'archiver';
+import formidable from 'formidable';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
 
 const generateDiploma = async (input, fileNameTemplateDocx, folderName) => {
     try {
@@ -27,19 +24,21 @@ const generateDiploma = async (input, fileNameTemplateDocx, folderName) => {
         if (!fs.existsSync(templatePath)) {
             throw new Error(`Template file not found at ${templatePath}`);
         }
-        const content = fs.readFileSync(templatePath, "binary");
+        const content = fs.readFileSync(templatePath, 'binary');
         const zip = new PizZip(content);
         const doc = new Docxtemplater(zip, {
-            paragraphLoop: true, linebreaks: true,
+            paragraphLoop: true,
+            linebreaks: true,
         });
 
         doc.render(input);
 
         const buf = doc.getZip().generate({
-            type: "nodebuffer", compression: "DEFLATE",
+            type: 'nodebuffer',
+            compression: 'DEFLATE',
         });
 
-        const diplomaDir = `/tmp/${folderName}`
+        const diplomaDir = `/tmp/${folderName}`;
         console.log(`Creating directory ${diplomaDir}`);
         if (!fs.existsSync(diplomaDir)) {
             fs.mkdirSync(diplomaDir, { recursive: true });
@@ -50,7 +49,7 @@ const generateDiploma = async (input, fileNameTemplateDocx, folderName) => {
         console.log(`Writing diploma to ${fileName}`);
         fs.writeFileSync(fileName, buf);
     } catch (error) {
-        console.error("Error generating diploma: ", error);
+        console.error('Error generating diploma: ', error);
         throw error;
     }
 };
@@ -71,37 +70,39 @@ const generateDiplomaViaXLSX = async (fileNameTemplateDocx, fileNameDataExcel) =
             await generateDiploma(data, fileNameTemplateDocx, uuid);
         }
 
-        console.log("Diplomas generated successfully!");
+        console.log('Diplomas generated successfully!');
         return { status: 200, pathName: `${uuid}` };
     } catch (error) {
-        console.error("Error generating diplomas: ", error);
+        console.error('Error generating diplomas: ', error);
         throw error;
     }
 };
 
 const uploadExcel = async (fileBuffer) => {
     try {
-        console.log("Uploading Excel file...");
+        console.log('Uploading Excel file...');
         const buffer = Buffer.from(fileBuffer);
         const new_uuid = uuidv4();
-        const filePath = `/tmp/data/${new_uuid}_diplomas.xlsx`
+        const filePath = `/tmp/data/${new_uuid}_diplomas.xlsx`;
         if (!fs.existsSync('/tmp/data')) {
             fs.mkdirSync('/tmp/data', { recursive: true });
         }
         fs.writeFileSync(filePath, buffer);
         console.log(`File uploaded successfully to ${filePath}`);
         return {
-            status: 200, message: "Fișierul Excel a fost încărcat cu succes!", fileName: `${new_uuid}_diplomas.xlsx`,
-        }
+            status: 200,
+            message: 'Fișierul Excel a fost încărcat cu succes!',
+            fileName: `${new_uuid}_diplomas.xlsx`,
+        };
     } catch (error) {
-        console.error("Error uploading file: ", error);
+        console.error('Error uploading file: ', error);
         throw error;
     }
 };
 
 const uploadDocx = async (fileBuffer) => {
     try {
-        console.log("Uploading DOCX template...");
+        console.log('Uploading DOCX template...');
         const buffer = Buffer.from(fileBuffer);
         const new_uuid = uuidv4();
         const filePath = `/tmp/templates/${new_uuid}_template.docx`;
@@ -113,32 +114,60 @@ const uploadDocx = async (fileBuffer) => {
 
         console.log(`Template uploaded successfully to ${filePath}`);
         return {
-            status: 200, message: "Template-ul DOCX a fost încărcat cu succes!", fileName: `${new_uuid}_template.docx`,
+            status: 200,
+            message: 'Template-ul DOCX a fost încărcat cu succes!',
+            fileName: `${new_uuid}_template.docx`,
         };
     } catch (error) {
-        console.error("Error uploading DOCX template: ", error);
+        console.error('Error uploading DOCX template: ', error);
         throw error;
     }
 };
 
-app.post('/upload-docx', upload.single('file'), async (req, res) => {
-    try {
-        const response = await uploadDocx(req.file.buffer);
-        res.send(response);
-    } catch (error) {
-        console.log("Error uploading DOCX file: ", error)
-        res.status(500).send({ error: 'Eroare la încărcarea fișierului DOCX.' });
-    }
+app.post('/upload-docx', async (req, res) => {
+    const form = formidable({multiples: false});
+    console.log('Uploading DOCX file...');
+    console.log('Received request:', req);
+    await form.parse(req, async (err, fields, files) => {
+        if (err) {
+            console.log('Error parsing DOCX upload: ', err);
+            res.status(500).send({error: `Error parsing DOCX upload: ${err}`});
+            return;
+        }
+        console.log('Received fields:', fields);
+        console.log('Received files:', files);
+        const file = files.file;
+        const fileBuffer = fs.readFileSync(file.filepath);
+        try {
+            const response = await uploadDocx(fileBuffer);
+            res.send(response);
+        } catch (error) {
+            console.log('Error uploading DOCX file: ', error);
+            res.status(500).send({error: `Error uploading DOCX file: ${error}`});
+        }
+    });
 });
 
-app.post('/upload-excel', upload.single('file'), async (req, res) => {
-    try {
-        const response = await uploadExcel(req.file.buffer);
-        res.send(response);
-    } catch (error) {
-        console.log("Error uploading Excel file: ", error)
-        res.status(500).send({ error: 'Eroare la încărcarea fișierului Excel.' });
-    }
+app.post('/upload-excel', async (req, res) => {
+    const form = formidable({multiples: false});
+    await form.parse(req, async (err, fields, files) => {
+        if (err) {
+            console.log('Error parsing Excel upload: ', err);
+            res.status(500).send({error: 'Eroare la încărcarea fișierului Excel.'});
+            return;
+        }
+        console.log('Received fields:', fields);
+        console.log('Received files:', files);
+        const file = files.file;
+        const fileBuffer = fs.readFileSync(file.filepath);
+        try {
+            const response = await uploadExcel(fileBuffer);
+            res.send(response);
+        } catch (error) {
+            console.log('Error uploading Excel file: ', error);
+            res.status(500).send({error: 'Eroare la încărcarea fișierului Excel.'});
+        }
+    });
 });
 
 app.get('/generate-diplomas', async (req, res) => {
@@ -152,9 +181,9 @@ app.get('/generate-diplomas', async (req, res) => {
         }
 
         const response = await generateDiplomaViaXLSX(fileNameTemplateDocx, fileNameDataExcel);
-        res.send({ status: 200, message: "Diplomele au fost generate cu succes!", pathName: response.pathName });
+        res.send({ status: 200, message: 'Diplomele au fost generate cu succes!', pathName: response.pathName });
     } catch (error) {
-        console.log("Error generating diplomas: ", error)
+        console.log('Error generating diplomas: ', error);
         res.status(500).send({ error: 'Eroare la generarea diplomelor.' });
     }
 });
@@ -166,7 +195,7 @@ app.get('/download', async (req, res) => {
     const zipFilePath = `/tmp/${diplomaDir}.zip`;
     const output = fs.createWriteStream(zipFilePath);
     const archive = archiver('zip', {
-        zlib: { level: 9 }
+        zlib: { level: 9 },
     });
 
     output.on('close', function () {
@@ -180,7 +209,7 @@ app.get('/download', async (req, res) => {
     });
 
     archive.on('error', function (err) {
-        console.error("Error creating archive: ", err);
+        console.error('Error creating archive: ', err);
         res.status(500).send({ error: 'Eroare la crearea arhivei ZIP.' });
     });
 
@@ -189,7 +218,7 @@ app.get('/download', async (req, res) => {
     console.log(`Adding files from ${diplomaDir} to archive`);
     archive.directory(`/tmp/${diplomaDir}`, false);
 
-    archive.finalize();
+    await archive.finalize();
 });
 
 app.get('/', (req, res) => {
