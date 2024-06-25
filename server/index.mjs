@@ -8,7 +8,7 @@ import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import serverless from 'serverless-http';
 import bodyParser from "body-parser";
-import {v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import archiver from 'archiver';
 
 const app = express();
@@ -122,22 +122,32 @@ const uploadDocx = async (fileBuffer) => {
 };
 
 app.post('/upload-docx', upload.single('file'), async (req, res) => {
+    console.log('Received file for /upload-docx:', req.file)
     try {
+        if (!req.file) {
+            throw new Error('File not provided');
+        }
+        console.log('File received for /upload-docx:', req.file);
         const response = await uploadDocx(req.file.buffer);
         res.send(response);
     } catch (error) {
         console.log("Error uploading DOCX file: ", error)
-        res.status(500).send({ error: 'Eroare la încărcarea fișierului DOCX.' });
+        res.status(500).send( { error: `${error}` });
     }
 });
 
 app.post('/upload-excel', upload.single('file'), async (req, res) => {
     try {
+        console.log('Received file for /upload-excel:', req.file)
+        if (!req.file) {
+            throw new Error('File not provided');
+        }
+        console.log('File received for /upload-excel:', req.file);
         const response = await uploadExcel(req.file.buffer);
         res.send(response);
     } catch (error) {
         console.log("Error uploading Excel file: ", error)
-        res.status(500).send({ error: 'Eroare la încărcarea fișierului Excel.' });
+        res.status(500).send({ error: `${error}` });
     }
 });
 
@@ -155,7 +165,7 @@ app.get('/generate-diplomas', async (req, res) => {
         res.send({ status: 200, message: "Diplomele au fost generate cu succes!", pathName: response.pathName });
     } catch (error) {
         console.log("Error generating diplomas: ", error)
-        res.status(500).send({ error: 'Eroare la generarea diplomelor.' });
+        res.status(500).send({ error: `${error}` });
     }
 });
 
